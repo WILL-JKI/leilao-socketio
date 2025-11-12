@@ -84,8 +84,8 @@ io.on('connection', (socket) => {
         });
       }
       
-      io.emit('mensagem', 'O leilão começou!');
-      io.emit('mensagem', `O valor secreto foi definido. Boa sorte!`);
+      // Send a single combined message
+      io.emit('mensagem', '🏁 O leilão começou! O valor secreto foi definido. Boa sorte! 🎯');
       iniciarRodada();
     }
   });
@@ -192,16 +192,13 @@ function iniciarRodada() {
   lances = {};
   const faixa = faixasValores[rodadaAtual - 1];
   
-  // Envia a faixa de valores para todos os jogadores
-  io.emit('novaRodada', { 
-    rodada: rodadaAtual,
-    min: faixa.min,
-    max: faixa.max
-  });
+  // Send a single combined message for the new round
+  const mensagemRodada = `
+🎯 RODADA ${rodadaAtual} de ${TOTAL_RODADAS}
+💵 Faixa de lances: R$ ${faixa.min.toLocaleString()} a R$ ${faixa.max.toLocaleString()}
+⏱️ Envie seu lance!`;
   
-  io.emit('mensagem', `🎯 Rodada ${rodadaAtual} de ${TOTAL_RODADAS}`, 'info');
-  io.emit('mensagem', `💵 Faixa de lances: R$ ${faixa.min.toLocaleString()} a R$ ${faixa.max.toLocaleString()}`, 'info');
-  io.emit('mensagem', 'Envie seu lance!', 'info');
+  io.emit('mensagem', mensagemRodada, 'info');
 }
 
 function encerrarRodada() {

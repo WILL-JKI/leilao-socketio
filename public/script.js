@@ -143,10 +143,15 @@ socket.on('connect', () => {
   addMessage('Conectado ao servidor. Escolha uma opção para começar.', 'info');
 });
 
-// Add a message when the admin starts the game
+// Handle all game messages with type support
 socket.on('mensagem', (msg, type = 'info') => {
-  addMessage(msg, type);
+  // Only add the message if it's not a duplicate of the last message
+  const lastMessage = mensagens.lastElementChild?.textContent;
+  const newMessage = `[${new Date().toLocaleTimeString()}] ${msg}`;
   
-  // Auto-scroll to bottom of messages
-  window.scrollTo(0, document.body.scrollHeight);
+  if (lastMessage !== newMessage) {
+    addMessage(msg, type);
+    // Auto-scroll to bottom of messages
+    window.scrollTo(0, document.body.scrollHeight);
+  }
 });
