@@ -193,18 +193,18 @@ socket.on('novaRodada', (data) => {
   
   if (itemNome) {
     itemNome.textContent = data.item?.nome || 'Item do Leilão';
-    itemNome.style.display = 'block';
+    itemNome.style.display = 'block'; // Always show the text
   }
   
   if (itemImagem) {
     if (data.item?.imagem) {
       itemImagem.src = data.item.imagem;
       itemImagem.style.display = 'block';
-      // Hide the text when image is shown
-      if (itemNome) itemNome.style.display = 'none';
+      // Keep the text visible below the image
+      if (itemNome) itemNome.style.display = 'block';
     } else {
       itemImagem.style.display = 'none';
-      // Show the text when no image
+      // Still show the text even without an image
       if (itemNome) itemNome.style.display = 'block';
     }
   }
