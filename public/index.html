@@ -47,17 +47,40 @@
       background-color: #0056b3;
     }
     #mensagens {
-      margin: 20px auto;
-      max-width: 800px;
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      width: 400px;
+      max-height: 50vh;
       text-align: left;
-      background: rgba(30, 30, 30, 0.8);
-      padding: 20px;
-      border-radius: 12px;
-      height: 400px;
+      background: rgba(20, 20, 20, 0.9);
+      padding: 15px;
+      border-radius: 12px 12px 0 0;
       overflow-y: auto;
       font-family: "Jersey 25", monospace;
       border: 2px solid #333;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      border-bottom: none;
+      box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+    }
+    
+    /* Custom scrollbar */
+    #mensagens::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    #mensagens::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    
+    #mensagens::-webkit-scrollbar-thumb {
+      background: #4a90e2;
+      border-radius: 4px;
+    }
+    
+    #mensagens::-webkit-scrollbar-thumb:hover {
+      background: #3a7bc8;
     }
     
     #mensagens p {
@@ -142,6 +165,8 @@
     <button id="btnLance">Enviar</button>
   </div>
 
-  <div id="mensagens"></div>
+  <div id="mensagens">
+    <p style="color: #4a90e2;">Sistema inicializado. Aguardando jogadores...</p>
+  </div>
 </body>
 </html>
