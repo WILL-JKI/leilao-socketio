@@ -7,12 +7,32 @@ const adminConfig = document.getElementById('adminConfig');
 const playerArea = document.getElementById('playerArea');
 const mensagens = document.getElementById('mensagens');
 const loginArea = document.getElementById('loginArea');
+const btnDefinir = document.getElementById('btnDefinir');
+const btnLance = document.getElementById('btnLance');
+const btnEscolherImagem = document.getElementById('btnEscolherImagem');
+const btnRemoverImagem = document.getElementById('btnRemoverImagem');
+const itemImageInput = document.getElementById('itemImage');
+const imagePreview = document.getElementById('imagePreview');
+const previewImg = document.getElementById('preview');
+const itemImagem = document.getElementById('itemImagem');
+const itemNome = document.getElementById('itemNome');
+const adminArea = document.getElementById('adminArea');
+
+let itemImageBase64 = '';
 
 btnAdmin.onclick = () => {
-  socket.emit('entrar', { tipo: 'admin' });
+  const nome = 'Administrador';
+  socket.emit('entrar', { 
+    tipo: 'admin',
+    nome: nome
+  });
+  
   loginArea.style.display = 'none';
-  adminConfig.style.display = 'block';
+  adminArea.style.display = 'block';
   addMessage('Você entrou como administrador.');
+  
+  // Focus on the item name input
+  document.getElementById('nomeItem').focus();
 };
 
 btnPlayer.onclick = () => {
@@ -32,22 +52,93 @@ btnPlayer.onclick = () => {
   document.querySelector('#playerArea h3').textContent = `Olá, ${nome}! Envie seu lance:`;
 };
 
+// Handle image selection
+if (btnEscolherImagem) {
+  btnEscolherImagem.addEventListener('click', (e) => {
+    e.preventDefault();
+    itemImageInput.click();
+  });
+}
+
+// Handle image input change
+if (itemImageInput) {
+  itemImageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        addMessage('A imagem é muito grande. Por favor, escolha uma imagem menor que 2MB.', 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        itemImageBase64 = event.target.result;
+        if (previewImg) {
+          previewImg.src = itemImageBase64;
+          imagePreview.style.display = 'block';
+          if (btnRemoverImagem) {
+            btnRemoverImagem.style.display = 'block';
+          }
+        }
+      };
+      reader.onerror = () => {
+        addMessage('Erro ao carregar a imagem. Tente novamente.', 'error');
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
+// Handle image removal
+if (btnRemoverImagem) {
+  btnRemoverImagem.addEventListener('click', (e) => {
+    e.preventDefault();
+    itemImageBase64 = '';
+    if (itemImageInput) itemImageInput.value = '';
+    if (imagePreview) imagePreview.style.display = 'none';
+    if (btnRemoverImagem) btnRemoverImagem.style.display = 'none';
+  });
+}
+
 document.getElementById('btnDefinir').onclick = () => {
-  const valorInput = document.getElementById('valorItem');
-  const valor = valorInput.value.trim();
+  const nomeItem = document.getElementById('nomeItem').value.trim();
+  const valorItem = document.getElementById('valorItem').value.trim();
   
-  if (!valor) {
+  if (!nomeItem) {
+    addMessage('Por favor, insira um nome para o item.', 'error');
+    return;
+  }
+  
+  if (!valorItem) {
     addMessage('Por favor, insira um valor para o item.', 'error');
     return;
   }
   
-  if (isNaN(valor) || Number(valor) <= 0) {
+  if (isNaN(valorItem) || Number(valorItem) <= 0) {
     addMessage('Por favor, insira um valor numérico válido maior que zero.', 'error');
     return;
   }
   
-  socket.emit('definirItem', valor);
-  valorInput.value = '';
+  const itemData = {
+    nome: nomeItem,
+    valor: valorItem
+  };
+  
+  // Only include image if one was selected
+  if (itemImageBase64) {
+    itemData.imagem = itemImageBase64;
+  }
+  
+  socket.emit('definirItem', itemData);
+  
+  // Clear the form
+  document.getElementById('nomeItem').value = '';
+  document.getElementById('valorItem').value = '';
+  if (imagePreview) imagePreview.style.display = 'none';
+  if (btnRemoverImagem) btnRemoverImagem.style.display = 'none';
+  itemImageBase64 = '';
+  if (itemImageInput) itemImageInput.value = '';
 };
 
 document.getElementById('btnLance').onclick = () => {
@@ -141,6 +232,14 @@ document.getElementById('valorItem').addEventListener('keypress', (e) => {
 socket.on('connect', () => {
   mensagens.innerHTML = '';
   addMessage('Conectado ao servidor. Escolha uma opção para começar.', 'info');
+});
+
+// Handle admin connection
+socket.on('adminConnected', () => {
+  loginArea.style.display = 'none';
+  adminArea.style.display = 'block';
+  addMessage('Você está conectado como administrador.');
+  document.getElementById('nomeItem').focus();
 });
 
 // Handle all game messages with type support

@@ -22,10 +22,20 @@ io.on('connection', (socket) => {
   console.log(`Novo usuário conectado: ${socket.id}`);
 
   socket.on('entrar', (data) => {
-    if (data.tipo === 'admin' && !admin) {
-      admin = socket.id;
-      socket.emit('mensagem', 'Você entrou como ADMIN.');
-      io.emit('mensagem', 'Administrador conectado. Aguardando jogadores...');
+    if (data.tipo === 'admin') {
+      if (!admin) {
+        admin = socket.id;
+        const nomeAdmin = data.nome || 'Administrador';
+        playerNames.set(socket.id, nomeAdmin);
+        
+        // Notify everyone that admin has connected
+        io.emit('mensagem', `${nomeAdmin} (Admin) conectou!`);
+        
+        // Initialize admin's game state
+        socket.emit('adminConnected');
+      } else {
+        socket.emit('mensagem', 'Já existe um administrador conectado.', 'error');
+      }
     } else if (data.tipo === 'player' && players.length < 2) {
       const playerName = data.nome || `Jogador ${players.length + 1}`;
       players.push(socket.id);
@@ -44,9 +54,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('definirItem', (valor) => {
+  socket.on('definirItem', (data) => {
     if (socket.id === admin) {
-      valorSecreto = Number(valor);
+      valorSecreto = Number(data.valor);
+      nomeItem = data.nome || 'Item do Leilão';
+      imagemItem = data.imagem || null;
+      
+      if (isNaN(valorSecreto) || valorSecreto <= 0) {
+        io.to(admin).emit('mensagem', 'Por favor, insira um valor válido para o item.', 'error');
+        return;
+      }
       
       // Gera faixas aleatórias para cada rodada com cálculos menos previsíveis
       faixasValores = [];
@@ -84,8 +101,20 @@ io.on('connection', (socket) => {
         });
       }
       
-      // Send a single combined message
-      io.emit('mensagem', '🏁 O leilão começou! O valor secreto foi definido. Boa sorte! 🎯');
+      // Envia a mensagem de início do leilão com o nome do item
+      io.emit('mensagem', `🏁 Leilão iniciado! Item: ${nomeItem}`);
+      
+      // Inicia a primeira rodada
+      rodadaAtual = 1;
+      io.emit('novaRodada', { 
+        rodada: rodadaAtual, 
+        min: faixasValores[0].min, 
+        max: faixasValores[0].max,
+        item: {
+          nome: nomeItem,
+          imagem: imagemItem
+        }
+      });
       iniciarRodada();
     }
   });
