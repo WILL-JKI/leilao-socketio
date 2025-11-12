@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Leilão com Socket.IO</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js" defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #f5f5f5;
+      text-align: center;
+      padding: 20px;
+    }
+    input, button {
+      padding: 8px;
+      margin: 5px;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #mensagens {
+      margin-top: 20px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+      height: 250px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>💰 Sistema de Leilão</h1>
+
+  <div>
+    <button id="btnAdmin">Entrar como ADMIN</button>
+    <button id="btnPlayer">Entrar como JOGADOR</button>
+  </div>
+
+  <div id="adminConfig" style="display:none;">
+    <h3>Configuração do Leilão</h3>
+    <input type="number" id="valorItem" placeholder="Valor secreto do item">
+    <button id="btnDefinir">Iniciar Leilão</button>
+  </div>
+
+  <div id="playerArea" style="display:none;">
+    <h3>Envie seu lance:</h3>
+    <input type="number" id="valorLance" placeholder="Seu lance">
+    <button id="btnLance">Enviar</button>
+  </div>
+
+  <div id="mensagens"></div>
+</body>
+</html>
