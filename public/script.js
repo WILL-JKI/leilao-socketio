@@ -209,6 +209,13 @@ socket.on('novaRodada', (data) => {
     }
   }
   
+  // Mostrar a área do jogador quando um jogador se conectar
+  document.getElementById('playerArea').style.display = 'block';
+  
+  // Mostrar as imagens dos jogadores
+  document.getElementById('player1Image').style.display = 'block';
+  document.getElementById('player2Image').style.display = 'block';
+  
   // Focus on the bid input if in player area
   if (document.getElementById('playerArea').style.display !== 'none') {
     setTimeout(() => {
