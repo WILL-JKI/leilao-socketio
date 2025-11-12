@@ -36,17 +36,40 @@
       background: #1e1e1e;
       padding: 15px;
       border-radius: 10px;
-      height: 250px;
+      height: 300px;
       overflow-y: auto;
+      font-family: 'Courier New', monospace;
+    }
+    
+    #mensagens p {
+      margin: 5px 0;
+      padding: 3px 0;
+      border-bottom: 1px solid #333;
+    }
+    
+    #loginArea {
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: 0 auto 20px auto;
     }
   </style>
 </head>
 <body>
   <h1>💰 Sistema de Leilão</h1>
 
-  <div>
-    <button id="btnAdmin">Entrar como ADMIN</button>
-    <button id="btnPlayer">Entrar como JOGADOR</button>
+  <div id="loginArea">
+    <div>
+      <button id="btnAdmin">Entrar como ADMIN</button>
+    </div>
+    <div style="margin-top: 20px;">
+      <p>ou</p>
+      <div>
+        <input type="text" id="playerName" placeholder="Seu nome" style="margin-right: 10px;">
+        <button id="btnPlayer">Entrar como JOGADOR</button>
+      </div>
+    </div>
   </div>
 
   <div id="adminConfig" style="display:none;">
