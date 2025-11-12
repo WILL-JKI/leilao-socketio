@@ -132,13 +132,10 @@ document.getElementById('btnDefinir').onclick = () => {
   
   socket.emit('definirItem', itemData);
   
-  // Clear the form
-  document.getElementById('nomeItem').value = '';
-  document.getElementById('valorItem').value = '';
-  if (imagePreview) imagePreview.style.display = 'none';
-  if (btnRemoverImagem) btnRemoverImagem.style.display = 'none';
-  itemImageBase64 = '';
-  if (itemImageInput) itemImageInput.value = '';
+  // Mostra o botão de finalizar leilão e esconde o formulário de definição
+  if (adminItemSetup) adminItemSetup.style.display = 'none';
+  if (adminAuctionControl) adminAuctionControl.style.display = 'block';
+  if (btnFinalizarLeilao) btnFinalizarLeilao.style.display = 'block';
 };
 
 document.getElementById('btnLance').onclick = () => {
@@ -188,10 +185,37 @@ socket.on('mensagem', (msg) => {
   addMessage(msg);
 });
 
-// Handle new round with min and max values
-socket.on('novaRodada', ({ rodada, min, max }) => {
-  // This is now handled by the server's mensagem events
-  // The min and max values are shown in the messages from the server
+// Handle new round with item data
+socket.on('novaRodada', (data) => {
+  const itemNome = document.getElementById('itemNome');
+  const itemImagem = document.getElementById('itemImagem');
+  const itemDisplay = document.getElementById('itemDisplay');
+  
+  if (itemNome) {
+    itemNome.textContent = data.item?.nome || 'Item do Leilão';
+    itemNome.style.display = 'block';
+  }
+  
+  if (itemImagem) {
+    if (data.item?.imagem) {
+      itemImagem.src = data.item.imagem;
+      itemImagem.style.display = 'block';
+      // Hide the text when image is shown
+      if (itemNome) itemNome.style.display = 'none';
+    } else {
+      itemImagem.style.display = 'none';
+      // Show the text when no image
+      if (itemNome) itemNome.style.display = 'block';
+    }
+  }
+  
+  // Focus on the bid input if in player area
+  if (document.getElementById('playerArea').style.display !== 'none') {
+    setTimeout(() => {
+      const valorLance = document.getElementById('valorLance');
+      if (valorLance) valorLance.focus();
+    }, 100);
+  }
 });
 
 // Handle game reset after completion
@@ -238,9 +262,40 @@ socket.on('connect', () => {
 socket.on('adminConnected', () => {
   loginArea.style.display = 'none';
   adminArea.style.display = 'block';
+  
+  // Garante que apenas o formulário de definição esteja visível ao conectar
+  if (adminItemSetup) adminItemSetup.style.display = 'block';
+  if (adminAuctionControl) adminAuctionControl.style.display = 'none';
+  if (btnFinalizarLeilao) btnFinalizarLeilao.style.display = 'none';
+  
   addMessage('Você está conectado como administrador.');
   document.getElementById('nomeItem').focus();
 });
+
+// Evento para finalizar o leilão
+if (btnFinalizarLeilao) {
+  btnFinalizarLeilao.addEventListener('click', () => {
+    // Aqui você pode adicionar a lógica para finalizar o leilão
+    // Por enquanto, apenas mostra uma mensagem
+    addMessage('Leilão finalizado pelo administrador.');
+    
+    // Reexibe o formulário de definição de item
+    if (adminItemSetup) adminItemSetup.style.display = 'block';
+    if (adminAuctionControl) adminAuctionControl.style.display = 'none';
+    if (btnFinalizarLeilao) btnFinalizarLeilao.style.display = 'none';
+    
+    // Limpa o formulário
+    document.getElementById('nomeItem').value = '';
+    document.getElementById('valorItem').value = '';
+    if (imagePreview) imagePreview.style.display = 'none';
+    if (btnRemoverImagem) btnRemoverImagem.style.display = 'none';
+    itemImageBase64 = '';
+    if (itemImageInput) itemImageInput.value = '';
+    
+    // Foca no campo de nome do item
+    document.getElementById('nomeItem').focus();
+  });
+}
 
 // Handle all game messages with type support
 socket.on('mensagem', (msg, type = 'info') => {
