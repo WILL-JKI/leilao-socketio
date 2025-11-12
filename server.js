@@ -48,12 +48,40 @@ io.on('connection', (socket) => {
     if (socket.id === admin) {
       valorSecreto = Number(valor);
       
-      // Gera faixas aleatórias para cada rodada
+      // Gera faixas aleatórias para cada rodada com cálculos menos previsíveis
       faixasValores = [];
+      
+      // Gera um fator base aleatório entre 1.5 e 3.5
+      const baseFactor = 1.5 + Math.random() * 2;
+      
+      // Gera um incremento aleatório baseado no valor secreto
+      const incrementoBase = Math.pow(10, Math.floor(Math.log10(valorSecreto)) - 1);
+      const incrementoAleatorio = Math.floor(Math.random() * 9 + 1) * incrementoBase;
+      
       for (let i = 0; i < TOTAL_RODADAS; i++) {
-        const min = Math.floor(Math.random() * (valorSecreto * 0.8)) + 1; // Até 80% do valor
-        const max = Math.floor(valorSecreto * (1.2 + Math.random() * 0.8)); // Até 200% do valor
-        faixasValores.push({ min, max });
+        // Varia o fator para cada rodada (entre 70% e 130% do fator base)
+        const fatorRodada = baseFactor * (0.7 + Math.random() * 0.6);
+        
+        // Calcula um valor médio alvo baseado no fator
+        const valorAlvo = Math.floor(valorSecreto * fatorRodada);
+        
+        // Adiciona um ruído aleatório ao valor alvo
+        const ruido = Math.floor(Math.random() * incrementoAleatorio * 2) - incrementoAleatorio;
+        const valorComRuido = Math.max(1, valorAlvo + ruido);
+        
+        // Define a faixa como 80% a 120% do valor com ruído
+        const variacao = 0.2 + Math.random() * 0.3; // Entre 20% e 50%
+        const min = Math.max(1, Math.floor(valorComRuido * (1 - variacao)));
+        const max = Math.floor(valorComRuido * (1 + variacao));
+        
+        // Garante que o valor secreto não esteja muito próximo dos limites
+        const minFinal = Math.min(min, valorSecreto * 0.8);
+        const maxFinal = Math.max(max, valorSecreto * 1.2);
+        
+        faixasValores.push({ 
+          min: minFinal, 
+          max: maxFinal 
+        });
       }
       
       io.emit('mensagem', 'O leilão começou!');
