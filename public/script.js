@@ -185,44 +185,88 @@ socket.on('mensagem', (msg) => {
   addMessage(msg);
 });
 
+// Função para exibir contagem regressiva
+function startCountdown() {
+  const countdownElement = document.getElementById('countdown');
+  const messages = [
+    { text: 'Prepare-se...', duration: 1000 },
+    { text: '3...', duration: 1000 },
+    { text: '2...', duration: 1000 },
+    { text: '1...', duration: 1000 },
+    { text: 'Comecem os Lances!', duration: 1000 }
+  ];
+
+  let index = 0;
+  
+  function showNextMessage() {
+    if (index >= messages.length) {
+      countdownElement.style.opacity = '0';
+      setTimeout(() => {
+        countdownElement.textContent = '';
+      }, 300);
+      return;
+    }
+    
+    const message = messages[index];
+    countdownElement.textContent = message.text;
+    countdownElement.style.opacity = '1';
+    
+    setTimeout(() => {
+      countdownElement.style.opacity = '0';
+      setTimeout(() => {
+        index++;
+        showNextMessage();
+      }, 300);
+    }, message.duration);
+  }
+  
+  showNextMessage();
+}
+
 // Handle new round with item data
 socket.on('novaRodada', (data) => {
-  const itemNome = document.getElementById('itemNome');
-  const itemImagem = document.getElementById('itemImagem');
-  const itemDisplay = document.getElementById('itemDisplay');
+  // Inicia a contagem regressiva
+  startCountdown();
   
-  if (itemNome) {
-    itemNome.textContent = data.item?.nome || 'Item do Leilão';
-    itemNome.style.display = 'block'; // Always show the text
-  }
-  
-  if (itemImagem) {
-    if (data.item?.imagem) {
-      itemImagem.src = data.item.imagem;
-      itemImagem.style.display = 'block';
-      // Keep the text visible below the image
-      if (itemNome) itemNome.style.display = 'block';
-    } else {
-      itemImagem.style.display = 'none';
-      // Still show the text even without an image
-      if (itemNome) itemNome.style.display = 'block';
+  // Aguarda o fim da contagem regressiva para mostrar o item
+  setTimeout(() => {
+    const itemNome = document.getElementById('itemNome');
+    const itemImagem = document.getElementById('itemImagem');
+    const itemDisplay = document.getElementById('itemDisplay');
+    
+    if (itemNome) {
+      itemNome.textContent = data.item?.nome || 'Item do Leilão';
+      itemNome.style.display = 'block'; // Always show the text
     }
-  }
-  
-  // Mostrar a área do jogador quando um jogador se conectar
-  document.getElementById('playerArea').style.display = 'block';
-  
-  // Mostrar as imagens dos jogadores
-  document.getElementById('player1Image').style.display = 'block';
-  document.getElementById('player2Image').style.display = 'block';
-  
-  // Focus on the bid input if in player area
-  if (document.getElementById('playerArea').style.display !== 'none') {
-    setTimeout(() => {
-      const valorLance = document.getElementById('valorLance');
-      if (valorLance) valorLance.focus();
-    }, 100);
-  }
+    
+    if (itemImagem) {
+      if (data.item?.imagem) {
+        itemImagem.src = data.item.imagem;
+        itemImagem.style.display = 'block';
+        // Keep the text visible below the image
+        if (itemNome) itemNome.style.display = 'block';
+      } else {
+        itemImagem.style.display = 'none';
+        // Still show the text even without an image
+        if (itemNome) itemNome.style.display = 'block';
+      }
+    }
+    
+    // Mostrar a área do jogador quando um jogador se conectar
+    document.getElementById('playerArea').style.display = 'block';
+    
+    // Mostrar as imagens dos jogadores
+    document.getElementById('player1Image').style.display = 'block';
+    document.getElementById('player2Image').style.display = 'block';
+    
+    // Focus on the bid input if in player area
+    if (document.getElementById('playerArea').style.display !== 'none') {
+      setTimeout(() => {
+        const valorLance = document.getElementById('valorLance');
+        if (valorLance) valorLance.focus();
+      }, 100);
+    }
+  }, 5000); // 5 segundos para a contagem regressiva (1s por mensagem)
 });
 
 // Handle game reset after completion

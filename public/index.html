@@ -33,6 +33,28 @@
       66% { color: #0000ff; text-shadow: 0 0 10px rgba(0,0,255,0.5); }
       100% { color: #ff0000; text-shadow: 0 0 10px rgba(255,0,0,0.5); }
     }
+    
+    .countdown {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 8em;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.5s;
+      text-align: center;
+      animation: pulse 1s infinite alternate;
+      pointer-events: none;
+    }
+    
+    @keyframes pulse {
+      from { transform: translate(-50%, -50%) scale(1); }
+      to { transform: translate(-50%, -50%) scale(1.1); }
+    }
     body {
       font-family: "Jersey 25", Arial, sans-serif;
       background: #121212;
@@ -227,7 +249,11 @@
     </div>
   </div>
 
-  <div id="mensagens" style="position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); max-height: 100px; overflow-y: auto; background: rgba(0, 0, 0, 0.7); padding: 10px 20px; border-radius: 8px; width: 80%; max-width: 800px; text-align: center;">
+  <!-- Elemento de contagem regressiva -->
+  <div id="countdown" class="countdown"></div>
+  
+  <!-- Log de mensagens (escondido) -->
+  <div id="mensagens" style="display: none;">
     <p style="color: #4a90e2; margin: 0;">Sistema inicializado. Aguardando jogadores...</p>
   </div>
   
