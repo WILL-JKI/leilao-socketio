@@ -237,7 +237,16 @@
       </div>
     </div>
     
-    <!-- Player Controls - Bottom Right -->
+    <!-- Connection Status -->
+  <div id="connectionStatus" style="position: fixed; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; color: #4a90e2; text-align: left; max-width: 200px; z-index: 1000;">
+    <div style="font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #4a90e2; padding-bottom: 5px;">Sala: <span id="roomNumber">-</span></div>
+    <div style="font-weight: bold; margin-bottom: 5px;">Jogadores:</div>
+    <div id="playerList" style="max-height: 200px; overflow-y: auto;">
+      <div>Conectando...</div>
+    </div>
+  </div>
+  
+  <!-- Player Controls - Bottom Right -->
     <div style="position: fixed; bottom: 30px; right: 30px; background: rgba(20, 20, 20, 0.9); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
       <h3 style="margin-top: 0; margin-bottom: 15px; color: #fff;">Seu Lance</h3>
       <div style="display: flex; gap: 10px; align-items: center;">

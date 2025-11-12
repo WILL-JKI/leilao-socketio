@@ -1,5 +1,75 @@
 const socket = io();
 
+// Atualiza a lista de jogadores na interface
+function updatePlayerList(players) {
+  const playerList = document.getElementById('playerList');
+  if (playerList) {
+    // Limpa a lista, incluindo a mensagem 'Conectando...'
+    playerList.innerHTML = '';
+    
+    // Se não houver jogadores, exibe uma mensagem
+    if (!players || players.length === 0) {
+      const emptyMessage = document.createElement('div');
+      emptyMessage.textContent = 'Nenhum jogador conectado';
+      emptyMessage.style.color = '#aaa';
+      playerList.appendChild(emptyMessage);
+      return;
+    }
+    
+    // Adiciona cada jogador à lista
+    players.forEach(player => {
+      const playerElement = document.createElement('div');
+      playerElement.textContent = player;
+      playerElement.style.margin = '3px 0';
+      playerElement.style.padding = '3px 5px';
+      playerElement.style.borderRadius = '3px';
+      playerElement.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+      playerList.appendChild(playerElement);
+    });
+  }
+}
+
+// Atualiza a lista de jogadores para todos os clientes
+socket.on('atualizarListaJogadores', (data) => {
+  console.log('Recebida lista de jogadores:', data.players);
+  
+  const roomNumber = document.getElementById('roomNumber');
+  if (roomNumber) {
+    roomNumber.textContent = data.roomId;
+  }
+  
+  // Garante que a lista de jogadores seja um array
+  const playersList = Array.isArray(data.players) ? data.players : [];
+  updatePlayerList(playersList);
+  
+  // Mostra o status de conexão
+  const connectionStatus = document.getElementById('connectionStatus');
+  if (connectionStatus) {
+    connectionStatus.style.display = 'block';
+  }
+});
+
+// Mensagem de conexão aceita
+socket.on('conexaoAceita', (data) => {
+  const roomNumber = document.getElementById('roomNumber');
+  if (roomNumber) {
+    roomNumber.textContent = data.roomId;
+  }
+  addMessage(data.message);
+  
+  // Mostra o status de conexão
+  const connectionStatus = document.getElementById('connectionStatus');
+  if (connectionStatus) {
+    connectionStatus.style.display = 'block';
+  }
+});
+
+// Trata erros
+socket.on('erro', (msg) => {
+  addMessage(`Erro: ${msg}`, 'error');
+});
+
+
 const btnAdmin = document.getElementById('btnAdmin');
 const btnPlayer = document.getElementById('btnPlayer');
 const playerNameInput = document.getElementById('playerName');

@@ -10,6 +10,9 @@ app.use(express.static('public'));
 
 let admin = null;
 let players = [];
+const rooms = new Map(); // Mapa para armazenar salas e jogadores
+let roomCounter = 100; // Começa a numerar as salas a partir de 100
+let currentRoom = null; // Armazena a sala atual
 let playerNames = new Map(); // To store player names
 let valorSecreto = 0;
 let rodadaAtual = 1;
@@ -22,36 +25,73 @@ io.on('connection', (socket) => {
   console.log(`Novo usuário conectado: ${socket.id}`);
 
   socket.on('entrar', (data) => {
+    // Se for administrador, cria uma nova sala
     if (data.tipo === 'admin') {
       if (!admin) {
         admin = socket.id;
+        roomCounter++;
+        currentRoom = roomCounter;
+        socket.join(currentRoom);
+        
         const nomeAdmin = data.nome || 'Administrador';
         playerNames.set(socket.id, nomeAdmin);
         
-        // Notify everyone that admin has connected
-        io.emit('mensagem', `${nomeAdmin} (Admin) conectou!`);
+        // Cria a sala com o administrador
+        rooms.set(currentRoom, new Set([nomeAdmin]));
         
-        // Initialize admin's game state
+        // Envia as informações da sala para o administrador
+        socket.emit('atualizarListaJogadores', {
+          roomId: currentRoom,
+          players: [nomeAdmin]
+        });
+        
+        io.emit('mensagem', `${nomeAdmin} (Admin) criou a sala ${currentRoom}`);
         socket.emit('adminConnected');
       } else {
-        socket.emit('mensagem', 'Já existe um administrador conectado.', 'error');
+        socket.emit('erro', 'Já existe um administrador conectado');
       }
-    } else if (data.tipo === 'player' && players.length < 2) {
-      const playerName = data.nome || `Jogador ${players.length + 1}`;
-      players.push(socket.id);
-      playerNames.set(socket.id, playerName);
-      
-      socket.emit('mensagem', `Bem-vindo, ${playerName}! Você é o Jogador ${players.length}.`);
-      io.emit('mensagem', `${playerName} entrou no jogo!`);
-      
-      if (players.length === 2) {
-        io.emit('mensagem', 'Dois jogadores conectados! O jogo pode começar quando o administrador definir o valor do item.');
-      } else if (players.length === 1) {
-        io.emit('mensagem', 'Aguardando mais um jogador para começar...');
-      }
-    } else {
-      socket.emit('mensagem', 'Sala cheia ou administrador já definido.');
+      return;
     }
+    
+    // Se for jogador e não houver sala, não permite conectar
+    if (data.tipo === 'player' && !currentRoom) {
+      socket.emit('erro', 'Nenhuma sala disponível. Aguarde o administrador criar uma sala.');
+      return;
+    }
+    
+    // Se chegou aqui, é um jogador se conectando à sala existente
+    const roomId = currentRoom;
+    
+    // Adiciona o jogador à sala e notifica todos
+    socket.join(roomId);
+    socket.roomId = roomId;
+    const nomeJogador = data.nome || `Jogador${socket.id.slice(0, 4)}`;
+    socket.nome = nomeJogador;
+    playerNames.set(socket.id, nomeJogador);
+    
+    // Atualiza a lista de jogadores na sala
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, new Set());
+    }
+    rooms.get(roomId).add(nomeJogador);
+    
+    players.push(socket.id);
+    
+    // Envia a lista atualizada para todos na sala
+    const playersList = Array.from(rooms.get(roomId));
+    io.to(roomId).emit('atualizarListaJogadores', {
+      roomId,
+      players: playersList
+    });
+    
+    // Notifica a sala que um novo jogador entrou
+    io.to(roomId).emit('mensagem', `${nomeJogador} entrou na sala`);
+    
+    // Mensagem de boas-vindas específica para o jogador
+    socket.emit('conexaoAceita', {
+      message: `Bem-vindo(a) à sala ${roomId}, ${nomeJogador}!`,
+      roomId: roomId
+    });
   });
 
   socket.on('definirItem', (data) => {
@@ -194,25 +234,68 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const playerName = playerNames.get(socket.id) || 'Um jogador';
-    console.log(`Usuário saiu: ${socket.id} (${playerName})`);
-    
-    if (players.includes(socket.id)) {
-      io.emit('mensagem', `${playerName} saiu do jogo.`);
-    } else if (socket.id === admin) {
-      io.emit('mensagem', 'O administrador saiu. O jogo será reiniciado.');
-    }
-    
-    players = players.filter(id => id !== socket.id);
-    playerNames.delete(socket.id);
-    if (socket.id === admin) admin = null;
-    
-    // Reset game if admin leaves
-    if (!admin) {
-      players = [];
-      playerNames.clear();
-      rodadaAtual = 1;
-      lances = {};
+    try {
+      const playerName = playerNames.get(socket.id) || 'Um jogador';
+      const roomId = socket.roomId;
+      console.log(`Usuário saiu: ${socket.id} (${playerName})`);
+      
+      // Remove o jogador da lista de jogadores
+      players = players.filter(id => id !== socket.id);
+      playerNames.delete(socket.id);
+      
+      // Se for o administrador que saiu
+      if (socket.id === admin) {
+        admin = null;
+        currentRoom = null;
+        io.emit('mensagem', 'O administrador saiu. O jogo será reiniciado.');
+        
+        // Limpa o jogo
+        players = [];
+        playerNames.clear();
+        rodadaAtual = 1;
+        lances = {};
+        rooms.clear();
+        return;
+      }
+      
+      // Se for um jogador normal e estiver em uma sala
+      if (roomId && rooms.has(roomId)) {
+        // Remove o jogador da sala
+        const room = rooms.get(roomId);
+        if (room) {
+          // Encontra e remove o nome exato do jogador (case sensitive)
+          let playerToRemove = null;
+          for (const name of room) {
+            if (name === playerName) {
+              playerToRemove = name;
+              break;
+            }
+          }
+          
+          if (playerToRemove) {
+            room.delete(playerToRemove);
+            
+            // Se a sala não estiver vazia, atualiza a lista de jogadores
+            if (room.size > 0) {
+              const playersList = Array.from(room);
+              console.log(`Atualizando lista de jogadores na sala ${roomId}:`, playersList);
+              
+              io.to(roomId).emit('atualizarListaJogadores', {
+                roomId,
+                players: playersList
+              });
+              
+              io.to(roomId).emit('mensagem', `${playerName} saiu da sala.`);
+            } else {
+              // Se a sala estiver vazia, remove a sala
+              console.log(`Sala ${roomId} ficou vazia, removendo...`);
+              rooms.delete(roomId);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao processar desconexão:', error);
     }
   });
 });
