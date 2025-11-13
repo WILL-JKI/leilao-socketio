@@ -36,13 +36,13 @@ io.on('connection', (socket) => {
         const nomeAdmin = data.nome || 'Administrador';
         playerNames.set(socket.id, nomeAdmin);
         
-        // Cria a sala com o administrador
-        rooms.set(currentRoom, new Set([nomeAdmin]));
+        // Cria a sala vazia (sem incluir o admin na lista de jogadores)
+        rooms.set(currentRoom, new Set());
         
-        // Envia as informações da sala para o administrador
+        // Envia as informações da sala para o administrador (lista vazia de jogadores)
         socket.emit('atualizarListaJogadores', {
           roomId: currentRoom,
-          players: [nomeAdmin]
+          players: []
         });
         
         io.emit('mensagem', `${nomeAdmin} (Admin) criou a sala ${currentRoom}`);
@@ -65,19 +65,20 @@ io.on('connection', (socket) => {
     // Adiciona o jogador à sala e notifica todos
     socket.join(roomId);
     socket.roomId = roomId;
-    const nomeJogador = data.nome || `Jogador${socket.id.slice(0, 4)}`;
+    const nomeJogador = data.nome || `Jogador${players.length + 1}`;
     socket.nome = nomeJogador;
     playerNames.set(socket.id, nomeJogador);
     
-    // Atualiza a lista de jogadores na sala
+    // Adiciona o jogador à lista de jogadores
+    players.push(socket.id);
+    
+    // Atualiza a lista de jogadores na sala (apenas jogadores, sem o admin)
     if (!rooms.has(roomId)) {
       rooms.set(roomId, new Set());
     }
     rooms.get(roomId).add(nomeJogador);
     
-    players.push(socket.id);
-    
-    // Envia a lista atualizada para todos na sala
+    // Envia a lista atualizada para todos na sala (apenas jogadores)
     const playersList = Array.from(rooms.get(roomId));
     io.to(roomId).emit('atualizarListaJogadores', {
       roomId,
@@ -159,77 +160,151 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handler para teste de conexão
+  socket.on('teste_conexao', (data) => {
+    console.log('Teste de conexão recebido:', data);
+    socket.emit('teste_conexao_resposta', { 
+      status: 'sucesso', 
+      mensagem: 'Conexão com o servidor está funcionando',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   socket.on('enviarLance', (valor) => {
-    if (players.includes(socket.id) && rodadaAtual <= TOTAL_RODADAS) {
-      const playerName = playerNames.get(socket.id) || `Jogador ${players.indexOf(socket.id) + 1}`;
-      const lance = Number(valor);
-      const faixaAtual = faixasValores[rodadaAtual - 1];
-      
-      // Verifica se o lance está dentro da faixa permitida
-      if (lance < faixaAtual.min || lance > faixaAtual.max) {
-        socket.emit('mensagem', `❌ Lance inválido! O lance deve estar entre R$ ${faixaAtual.min.toLocaleString()} e R$ ${faixaAtual.max.toLocaleString()}`, 'error');
-        return;
-      }
-      
-      // Verifica se o jogador já fez um lance nesta rodada
-      if (lances[socket.id]) {
-        socket.emit('mensagem', '❌ Você já fez um lance nesta rodada!', 'error');
-        return;
-      }
-      
-      // Verifica se o jogador já perdeu
-      if (lances[socket.id] === 'eliminado') {
-        socket.emit('mensagem', '❌ Você foi eliminado por ter feito um lance acima do valor secreto!', 'error');
-        return;
-      }
-      
-      // Verifica se o lance é maior que o valor secreto
-      if (lance > valorSecreto) {
-        lances[socket.id] = 'eliminado';
-        io.emit('mensagem', `💥 ${playerName} foi eliminado por dar um lance acima do valor secreto!`, 'error');
-        
-        // Verifica se ainda há jogadores ativos
-        const jogadoresAtivos = players.filter(id => lances[id] !== 'eliminado').length;
-        if (jogadoresAtivos <= 1) {
-          finalizarLeilao();
-          return;
-        }
-        
-        // Verifica se todos os jogadores já fizeram seus lances
-        const lancesAtuais = Object.keys(lances).filter(id => lances[id] !== 'eliminado').length;
-        if (lancesAtuais >= jogadoresAtivos) {
-          encerrarRodada();
-        }
-        return;
-      }
-      
-      // Registra o lance
-      lances[socket.id] = {
-        valor: lance,
+    console.log('Lance recebido:', { jogador: socket.id, valor });
+    
+    if (!players.includes(socket.id)) {
+      console.log('Jogador não está na lista de jogadores ativos');
+      socket.emit('enviarLance_resposta', { 
+        erro: true, 
+        mensagem: 'Você não está na lista de jogadores ativos.' 
+      });
+      return;
+    }
+    
+    if (rodadaAtual > TOTAL_RODADAS) {
+      console.log('Todas as rodadas já foram concluídas');
+      socket.emit('enviarLance_resposta', { 
+        erro: true, 
+        mensagem: 'Todas as rodadas já foram concluídas.' 
+      });
+      return;
+    }
+    
+    const playerName = playerNames.get(socket.id) || `Jogador ${players.indexOf(socket.id) + 1}`;
+    const lance = Number(valor);
+    const faixaAtual = faixasValores[rodadaAtual - 1];
+    
+    // Verifica se o lance é um número válido
+    if (isNaN(lance)) {
+      console.log('Lance inválido (não é um número):', valor);
+      socket.emit('enviarLance_resposta', { 
+        erro: true, 
+        mensagem: 'Por favor, insira um valor numérico válido.' 
+      });
+      return;
+    }
+    
+    // Verifica se o lance está dentro da faixa permitida
+    if (lance < faixaAtual.min || lance > faixaAtual.max) {
+      console.log('Lance fora da faixa permitida:', { lance, min: faixaAtual.min, max: faixaAtual.max });
+      socket.emit('enviarLance_resposta', { 
+        erro: true, 
+        mensagem: `❌ Lance inválido! O lance deve estar entre R$ ${faixaAtual.min.toLocaleString()} e R$ ${faixaAtual.max.toLocaleString()}` 
+      });
+      return;
+    }
+    
+    // Verifica se o jogador já fez um lance nesta rodada
+    if (lances[socket.id] && lances[socket.id] !== 'eliminado') {
+      console.log('Jogador já fez um lance nesta rodada:', playerName);
+      socket.emit('enviarLance_resposta', { 
+        erro: true, 
+        mensagem: '❌ Você já fez um lance nesta rodada!' 
+      });
+      return;
+    }
+    
+    // Verifica se o jogador já perdeu
+    if (lances[socket.id] === 'eliminado') {
+      console.log('Jogador já eliminado tentou dar lance:', playerName);
+      socket.emit('enviarLance_resposta', { 
+        erro: true, 
+        mensagem: '❌ Você foi eliminado e não pode mais dar lances!' 
+      });
+      return;
+    }
+    
+    // Calcula a diferença em relação ao valor secreto
+    const diferenca = Math.abs(lance - valorSecreto);
+    
+    // Registra o lance
+    lances[socket.id] = {
+      nome: playerName,
+      valor: lance,
+      diferenca: diferenca,
+      timestamp: new Date()
+    };
+    
+    console.log('Lance registrado:', { jogador: playerName, lance, diferenca });
+    
+    // Envia confirmação para o jogador
+    socket.emit('enviarLance_resposta', { 
+      erro: false, 
+      mensagem: `✅ Lance de R$ ${lance.toLocaleString()} registrado com sucesso!` 
+    });
+    
+    // Notifica todos os jogadores sobre o lance
+    io.emit('mensagem', `🎯 ${playerName} deu um lance de R$ ${lance.toLocaleString()}`, 'info');
+    
+    // Verifica se o lance é o mais próximo do valor secreto
+    if (diferenca < melhorLance.diferenca) {
+      melhorLance = {
+        jogador: socket.id,
         nome: playerName,
-        diferenca: Math.abs(valorSecreto - lance)
+        valor: lance,
+        diferenca: diferenca
       };
       
-      // Atualiza o melhor lance
-      if (lances[socket.id].diferenca < melhorLance.diferenca) {
-        melhorLance = {
-          jogador: socket.id,
-          nome: playerName,
-          valor: lance,
-          diferenca: lances[socket.id].diferenca
-        };
-      }
+      console.log('Novo melhor lance:', melhorLance);
+      io.emit('atualizarMelhorLance', melhorLance);
+    }
+    
+    // Verifica quantos jogadores já deram lance
+    const jogadoresComLance = Object.keys(lances).filter(id => 
+      lances[id] !== 'eliminado' && 
+      typeof lances[id] === 'object'
+    ).length;
+    
+    const totalJogadoresAtivos = players.filter(id => 
+      lances[id] !== 'eliminado' && 
+      (!lances[id] || typeof lances[id] === 'object')
+    ).length;
+    
+    console.log(`Jogadores ativos: ${totalJogadoresAtivos}, Jogadores com lance: ${jogadoresComLance}`);
+    
+    // Atualiza o melhor lance
+    if (diferenca < melhorLance.diferenca) {
+      melhorLance = {
+        jogador: socket.id,
+        nome: playerName,
+        valor: lance,
+        diferenca: diferenca
+      };
       
-      socket.emit('mensagem', `✅ Seu lance de R$ ${lance.toLocaleString()} foi recebido.`);
-      socket.broadcast.emit('mensagem', `📝 ${playerName} fez um lance.`);
-      
-      // Verifica se todos os jogadores fizeram seus lances
-      const jogadoresAtivos = players.filter(id => lances[id] !== 'eliminado').length;
-      const lancesAtuais = Object.values(lances).filter(lance => lance !== 'eliminado').length;
-      
-      if (lancesAtuais >= jogadoresAtivos) {
-        encerrarRodada();
-      }
+      console.log('Novo melhor lance:', melhorLance);
+    }
+    
+    // Notifica o jogador sobre o lance
+    socket.emit('mensagem', `✅ Seu lance de R$ ${lance.toLocaleString()} foi recebido.`);
+    
+    // Notifica os outros jogadores
+    socket.broadcast.emit('mensagem', `📝 ${playerName} fez um lance.`);
+    
+    // Verifica se todos os jogadores já fizeram seus lances
+    if (jogadoresComLance >= totalJogadoresAtivos && totalJogadoresAtivos > 0) {
+      console.log('Todos os jogadores ativos já deram seus lances, encerrando rodada...');
+      encerrarRodada();
     }
   });
 

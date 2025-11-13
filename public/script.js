@@ -1,6 +1,22 @@
-const socket = io();
+// Verifica se o Socket.IO foi carregado corretamente
+console.log('Socket.IO carregado?', typeof io !== 'undefined' ? 'Sim' : 'Não');
 
-// Atualiza a lista de jogadores na interface
+// Tenta criar a instância do socket
+let socket;
+try {
+  socket = io();
+  console.log('Socket criado com sucesso');
+} catch (error) {
+  console.error('Erro ao criar o socket:', error);
+  alert('Erro ao conectar com o servidor. Por favor, recarregue a página.');
+}
+
+// Adiciona mensagem de boas-vindas quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+  addMessage('Sistema de leilão carregado. Aguardando conexão...', 'info');
+});
+
+// Atualiza a lista de jogadores na interface e os nomes acima das imagens
 function updatePlayerList(players) {
   const playerList = document.getElementById('playerList');
   if (playerList) {
@@ -13,10 +29,30 @@ function updatePlayerList(players) {
       emptyMessage.textContent = 'Nenhum jogador conectado';
       emptyMessage.style.color = '#aaa';
       playerList.appendChild(emptyMessage);
+      
+      // Limpa os nomes dos jogadores
+      const player1Name = document.getElementById('player1Name');
+      const player2Name = document.getElementById('player2Name');
+      if (player1Name) player1Name.textContent = 'Jogador 1';
+      if (player2Name) player2Name.textContent = 'Jogador 2';
       return;
     }
     
-    // Adiciona cada jogador à lista
+    // Atualiza os nomes dos jogadores acima das imagens
+    players.forEach((player, index) => {
+      const playerNameElement = document.getElementById(`player${index + 1}Name`);
+      if (playerNameElement) {
+        playerNameElement.textContent = player;
+      }
+    });
+    
+    // Se houver apenas um jogador, limpa o nome do segundo jogador
+    if (players.length === 1) {
+      const player2Name = document.getElementById('player2Name');
+      if (player2Name) player2Name.textContent = 'Aguardando...';
+    }
+    
+    // Adiciona cada jogador à lista suspensa
     players.forEach(player => {
       const playerElement = document.createElement('div');
       playerElement.textContent = player;
@@ -228,70 +264,174 @@ document.getElementById('btnLance').onclick = () => {
 };
 
 function addMessage(msg, type = 'info') {
-  const p = document.createElement('p');
-  p.textContent = msg;
-  
-  // Add different styling based on message type
-  if (type === 'error') {
-    p.style.color = '#ff6b6b';
-  } else if (type === 'success') {
-    p.style.color = '#51cf66';
-  } else if (type === 'warning') {
-    p.style.color = '#fcc419';
+  const gameMessages = document.getElementById('gameMessages');
+  if (!gameMessages) {
+    console.error('Elemento gameMessages não encontrado!');
+    return;
   }
   
-  // Add timestamp
+  const messageDiv = document.createElement('div');
+  messageDiv.style.margin = '3px 0';
+  messageDiv.style.padding = '4px 6px';
+  messageDiv.style.borderRadius = '3px';
+  messageDiv.style.fontSize = '11px';
+  messageDiv.style.lineHeight = '1.4';
+  
+  // Adiciona timestamp
   const time = new Date().toLocaleTimeString();
   const timeSpan = document.createElement('span');
   timeSpan.textContent = `[${time}] `;
-  timeSpan.style.color = '#666';
-  p.insertBefore(timeSpan, p.firstChild);
+  timeSpan.style.color = '#aaa';
+  timeSpan.style.fontSize = '0.9em';
+  messageDiv.appendChild(timeSpan);
   
-  mensagens.appendChild(p);
-  mensagens.scrollTop = mensagens.scrollHeight;
-}
-
-socket.on('mensagem', (msg) => {
-  addMessage(msg);
-});
-
-// Função para exibir contagem regressiva
-function startCountdown() {
-  const countdownElement = document.getElementById('countdown');
-  const messages = [
-    { text: 'Prepare-se...', duration: 1000 },
-    { text: '3...', duration: 1000 },
-    { text: '2...', duration: 1000 },
-    { text: '1...', duration: 1000 },
-    { text: 'Comecem os Lances!', duration: 1000 }
-  ];
-
-  let index = 0;
+  // Adiciona a mensagem
+  const msgSpan = document.createElement('span');
+  msgSpan.textContent = msg;
+  messageDiv.appendChild(msgSpan);
   
-  function showNextMessage() {
-    if (index >= messages.length) {
-      countdownElement.style.opacity = '0';
-      setTimeout(() => {
-        countdownElement.textContent = '';
-      }, 300);
-      return;
-    }
-    
-    const message = messages[index];
-    countdownElement.textContent = message.text;
-    countdownElement.style.opacity = '1';
-    
-    setTimeout(() => {
-      countdownElement.style.opacity = '0';
-      setTimeout(() => {
-        index++;
-        showNextMessage();
-      }, 300);
-    }, message.duration);
+  // Estilização baseada no tipo de mensagem
+  switch(type) {
+    case 'error':
+      messageDiv.style.color = '#ff6b6b';
+      messageDiv.style.backgroundColor = 'rgba(255, 107, 107, 0.15)';
+      break;
+    case 'success':
+      messageDiv.style.color = '#51cf66';
+      messageDiv.style.backgroundColor = 'rgba(81, 207, 102, 0.15)';
+      break;
+    case 'warning':
+      messageDiv.style.color = '#fcc419';
+      messageDiv.style.backgroundColor = 'rgba(252, 196, 25, 0.15)';
+      break;
+    case 'info':
+    default:
+      messageDiv.style.color = '#4dabf7';
+      messageDiv.style.backgroundColor = 'rgba(77, 171, 247, 0.15)';
   }
   
-  showNextMessage();
+  // Adiciona a mensagem ao container
+  gameMessages.appendChild(messageDiv);
+  
+  // Limita o número de mensagens visíveis
+  const maxMessages = 20;
+  const messages = gameMessages.children;
+  
+  // Remove mensagens mais antigas se exceder o limite
+  while (messages.length > maxMessages) {
+    gameMessages.removeChild(messages[0]);
+  }
+  
+  // Rola para a mensagem mais recente
+  gameMessages.scrollTop = gameMessages.scrollHeight;
 }
+
+// Adiciona um listener para o evento 'connect'
+socket.on('connect', () => {
+  console.log('Conectado ao servidor Socket.IO');
+  console.log('Socket ID:', socket.id);
+  addMessage('Conectado ao servidor', 'success');
+  
+  // Testa o envio de mensagem para o servidor
+  console.log('Enviando teste de conexão para o servidor...');
+  socket.emit('teste_conexao', { mensagem: 'Teste de conexão do cliente' });
+});
+
+// Listener para mensagens do servidor
+socket.on('mensagem', (msg, tipo = 'info') => {
+  console.log('Mensagem recebida do servidor:', { msg, tipo });
+  addMessage(msg, tipo);
+});
+
+// Listener para erros de conexão
+socket.on('connect_error', (error) => {
+  console.error('Erro de conexão:', error);
+  addMessage('Erro na conexão com o servidor', 'error');
+});
+
+// Listener para teste de conexão
+socket.on('teste_conexao_resposta', (data) => {
+  console.log('Resposta do servidor (teste_conexao_resposta):', data);
+  addMessage('Conexão com o servidor confirmada', 'success');
+});
+
+// Adiciona um listener para o evento 'enviarLance_resposta'
+socket.on('enviarLance_resposta', (resposta) => {
+  console.log('Resposta do lance recebida:', resposta);
+  if (resposta.erro) {
+    console.log('Erro no lance:', resposta.mensagem);
+    addMessage(`❌ ${resposta.mensagem}`, 'error');
+  } else {
+    console.log('Lance bem-sucedido:', resposta.mensagem);
+    addMessage(`✅ ${resposta.mensagem}`, 'success');
+  }
+});
+
+// Log de todos os eventos recebidos (para depuração)
+socket.onAny((eventName, ...args) => {
+  console.log(`Evento recebido: ${eventName}`, args);
+});
+
+// Verifica se o container de mensagens existe
+const mensagensContainer = document.getElementById('mensagensContainer');
+console.log('Container de mensagens encontrado:', mensagensContainer ? 'Sim' : 'Não');
+
+// Adiciona uma mensagem de teste direta
+setTimeout(() => {
+  console.log('Adicionando mensagem de teste...');
+  addMessage('Esta é uma mensagem de teste direta', 'info');
+}, 1000);
+
+// Atualiza a margem de preço na interface
+function atualizarMargemPreco(min, max) {
+  const margemPreco = document.getElementById('margemPreco');
+  const valorMin = document.getElementById('valorMin');
+  const valorMax = document.getElementById('valorMax');
+  
+  if (margemPreco && valorMin && valorMax) {
+    valorMin.textContent = min.toLocaleString();
+    valorMax.textContent = max.toLocaleString();
+    margemPreco.style.display = 'flex';
+  }
+}
+
+// Atualiza o melhor lance na interface
+function atualizarMelhorLance(nome, valor) {
+  const melhorLanceAtual = document.getElementById('melhorLanceAtual');
+  if (melhorLanceAtual) {
+    melhorLanceAtual.textContent = `Melhor lance: ${nome} - R$ ${valor.toLocaleString()}`;
+  }
+}
+
+// Adiciona um listener para o evento 'novaRodada'
+socket.on('novaRodada', (data) => {
+  console.log('Nova rodada iniciada:', data);
+  addMessage(`🏁 Rodada ${data.rodada} iniciada!`, 'info');
+  addMessage(`💵 Faixa de valores: R$ ${data.min.toLocaleString()} - R$ ${data.max.toLocaleString()}`, 'info');
+  
+  // Atualiza a margem de preço
+  atualizarMargemPreco(data.min, data.max);
+  
+  // Atualiza a interface do usuário para a nova rodada
+  if (data.item) {
+    const itemNome = document.getElementById('itemNome');
+    const itemImagem = document.getElementById('itemImagem');
+    
+    if (itemNome) itemNome.textContent = data.item.nome || 'Item do leilão';
+    if (itemImagem && data.item.imagem) {
+      itemImagem.src = data.item.imagem;
+      itemImagem.style.display = 'block';
+    }
+  }
+});
+
+// Atualiza o melhor lance quando receber do servidor
+socket.on('atualizarMelhorLance', (melhorLance) => {
+  if (melhorLance && melhorLance.nome && melhorLance.valor) {
+    atualizarMelhorLance(melhorLance.nome, melhorLance.valor);
+    addMessage(`🎯 ${melhorLance.nome} está com o melhor lance até agora: R$ ${melhorLance.valor.toLocaleString()}`, 'info');
+  }
+});
 
 // Handle new round with item data
 socket.on('novaRodada', (data) => {

@@ -6,18 +6,41 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Jersey+25&display=swap" rel="stylesheet">
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    // Verifica se o Socket.IO foi carregado corretamente
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof io === 'undefined') {
+        console.error('Erro: Socket.IO não foi carregado corretamente!');
+        alert('Erro ao carregar o jogo. Por favor, recarregue a página.');
+      } else {
+        console.log('Socket.IO carregado com sucesso');
+      }
+    });
+  </script>
   <script src="script.js" defer></script>
   <style>
     @keyframes float {
       0% {
-        transform: translate(-50%, -50%) translateY(0);
+        transform: translateY(0) scale(1);
       }
       50% {
-        transform: translate(-50%, -50%) translateY(-15px);
+        transform: translateY(-10px) scale(1.02);
       }
       100% {
-        transform: translate(-50%, -50%) translateY(0);
+        transform: translateY(0) scale(1);
+      }
+    }
+    
+    @keyframes float2 {
+      0% {
+        transform: translateY(-5px) scale(1.01);
+      }
+      50% {
+        transform: translateY(5px) scale(0.99);
+      }
+      100% {
+        transform: translateY(-5px) scale(1.01);
       }
     }
     
@@ -184,7 +207,7 @@
   </style>
 </head>
 <body>
-  <h1>💰 Sistema de Leilão</h1>
+  <h1>Lance Cego</h1>
 
   <div id="loginArea">
     <div>
@@ -230,9 +253,9 @@
 
   <div id="playerArea" style="display:none;">
     <!-- Item Display - Centered -->
-    <div id="itemDisplay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; max-width: 90%; display: flex; flex-direction: column; align-items: center; justify-content: center; animation: float 3s ease-in-out infinite;">
-      <div id="imageContainer" style="width: 300px; height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; transform-style: preserve-3d;">
-        <img id="itemImagem" style="max-width: 100%; max-height: 80%; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); display: none; animation: subtlePulse 4s ease-in-out infinite; will-change: transform; object-fit: contain;">
+    <div id="itemDisplay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5;">
+      <div id="imageContainer" style="width: 400px; height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <img id="itemImagem" style="max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); display: none; animation: subtlePulse 4s ease-in-out infinite; will-change: transform; object-fit: contain;">
         <h2 id="itemNome" style="color: #4a90e2; margin: 20px 0 0; font-size: 2.2em; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); animation: rgbText 4s linear infinite; will-change: color, text-shadow; width: 100%;"></h2>
       </div>
     </div>
@@ -256,24 +279,37 @@
         </button>
       </div>
     </div>
+    
+    <!-- Margem de Preço - Centro Inferior -->
+    <div id="margemPreco" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.9); padding: 15px 30px; border-radius: 8px; color: white; font-size: 1.1em; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: none; z-index: 1000;">
+      <span id="melhorLanceAtual" style="color: #4a90e7; font-weight: bold;">-</span>
+      <span id="margemValor" style="margin: 0 10px;">Margem: R$ <span id="valorMin">0</span> - R$ <span id="valorMax">0</span></span>
+    </div>
   </div>
 
   <!-- Elemento de contagem regressiva -->
   <div id="countdown" class="countdown"></div>
   
-  <!-- Log de mensagens (escondido) -->
-  <div id="mensagens" style="display: none;">
-    <p style="color: #4a90e2; margin: 0;">Sistema inicializado. Aguardando jogadores...</p>
+  <!-- Novo container de mensagens simplificado -->
+  <div id="gameLog" style="position: fixed; bottom: 20px; left: 20px; width: 300px; max-height: 200px; overflow-y: auto; background: rgba(0, 0, 0, 0.8); color: white; padding: 10px; border-radius: 5px; font-family: Arial, sans-serif; font-size: 12px; z-index: 1000;">
+    <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #444; padding-bottom: 3px;">Histórico do Jogo</div>
+    <div id="gameMessages"></div>
   </div>
   
-  <!-- Player 1 Image -->
-  <div id="player1" style="position: fixed; left: 30px; top: 50%; transform: translateY(-50%); width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); border-radius: 12px; border: 2px solid #4a90e2; overflow: hidden;">
-    <img id="player1Image" src="images/player-1.jpg" alt="Player 1" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+  <!-- Player 1 -->
+  <div style="position: fixed; left: 30px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; z-index: 10;">
+    <div id="player1Name" style="color: #4a90e2; font-size: 1.5em; margin-bottom: 10px; text-align: center; font-weight: bold; text-shadow: 0 0 10px rgba(74, 144, 226, 0.7);">Jogador 1</div>
+    <div id="player1" style="width: 400px; height: 400px; display: flex; align-items: center; justify-content: center; overflow: visible; animation: float 6s ease-in-out infinite; will-change: transform;">
+      <img id="player1Image" src="images/player-1.png" alt="Player 1" style="width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.3));">
+    </div>
   </div>
   
-  <!-- Player 2 Image -->
-  <div id="player2" style="position: fixed; right: 30px; top: 50%; transform: translateY(-50%); width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); border-radius: 12px; border: 2px solid #e24a4a; overflow: hidden;">
-    <img id="player2Image" src="images/player-2.jpg" alt="Player 2" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+  <!-- Player 2 -->
+  <div style="position: fixed; right: 30px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; z-index: 10;">
+    <div id="player2Name" style="color: #e24a4a; font-size: 1.5em; margin-bottom: 10px; text-align: center; font-weight: bold; text-shadow: 0 0 10px rgba(226, 74, 74, 0.7);">Jogador 2</div>
+    <div id="player2" style="width: 400px; height: 400px; display: flex; align-items: center; justify-content: center; overflow: visible; animation: float2 7s ease-in-out infinite; will-change: transform;">
+      <img id="player2Image" src="images/player-2.png" alt="Player 2" style="width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.3));">
+    </div>
   </div>
 </body>
 </html>
