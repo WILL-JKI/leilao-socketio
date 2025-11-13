@@ -308,28 +308,42 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Evento disparado quando o cliente está prestes a desconectar
+  socket.on('disconnecting', () => {
+    // Marca o socket como desconectado para evitar falsos positivos
+    socket.disconnected = true;
+  });
+
   socket.on('disconnect', () => {
     try {
       const playerName = playerNames.get(socket.id) || 'Um jogador';
       const roomId = socket.roomId;
-      console.log(`Usuário saiu: ${socket.id} (${playerName})`);
       
-      // Remove o jogador da lista de jogadores
-      players = players.filter(id => id !== socket.id);
-      playerNames.delete(socket.id);
-      
-      // Se for o administrador que saiu
-      if (socket.id === admin) {
-        admin = null;
-        currentRoom = null;
-        io.emit('mensagem', 'O administrador saiu. O jogo será reiniciado.');
+      // Verifica se é uma desconexão real ou apenas uma navegação entre páginas
+      if (socket.disconnected) {
+        console.log(`Usuário saiu: ${socket.id} (${playerName})`);
         
-        // Limpa o jogo
-        players = [];
-        playerNames.clear();
-        rodadaAtual = 1;
-        lances = {};
-        rooms.clear();
+        // Remove o jogador da lista de jogadores
+        players = players.filter(id => id !== socket.id);
+        playerNames.delete(socket.id);
+        
+        // Se for o administrador que saiu
+        if (socket.id === admin) {
+          admin = null;
+          currentRoom = null;
+          io.emit('mensagem', 'O administrador saiu. O jogo será reiniciado.');
+          
+          // Limpa o jogo
+          players = [];
+          playerNames.clear();
+          rodadaAtual = 1;
+          lances = {};
+          rooms.clear();
+          return;
+        }
+      } else {
+        // Se não for uma desconexão real, apenas registra no log
+        console.log(`Evento de reconexão/navegação detectado para: ${socket.id} (${playerName})`);
         return;
       }
       
